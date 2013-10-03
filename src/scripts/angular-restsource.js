@@ -63,22 +63,54 @@
 
         $provide.provider('restsource', function () {
 
+            var _self = this;
+            var _globalOptions = {
+                idField: 'id',
+                httpConfig: {},
+                verbs: {},
+                responseInterceptors: []
+            };
+            var _globalUseBodyResponseInterceptor = true;
+            var _globalDefaultLimits = {
+                page: 1,
+                perPage: 25
+            };
+
+            this.idField = function (fieldName) {
+                _globalOptions.idField = fieldName;
+                return _self;
+            };
+
+            this.httpConfig = function (config) {
+                _globalOptions.httpConfig = config;
+                return _self;
+            };
+
+            this.defaultListLimits = function (page, perPage) {
+                _globalDefaultLimits = {
+                    page: page,
+                    perPage: perPage
+                };
+                return _self;
+            };
+
+            this.useBodyResponseInterceptor = function (enable) {
+                _globalUseBodyResponseInterceptor = enable;
+                return _self;
+            };
+
+            this.addResponseInterceptor = function (interceptor) {
+                _globalOptions.responseInterceptors.push(interceptor);
+                return _self;
+            };
+
             this.provide = function (name, url) {
 
                 return $provide.provider(name, function () {
                     var _self = this;
-                    var _options = {
-                        idField: 'id',
-                        httpConfig: {},
-                        verbs: {},
-                        responseInterceptors: []
-                    };
-
-                    var _useBodyResponseInterceptor = true;
-                    var _defaultListLimits = {
-                        page: 1,
-                        perPage: 25
-                    };
+                    var _options = angular.copy(_globalOptions);
+                    var _useBodyResponseInterceptor = angular.copy(_globalUseBodyResponseInterceptor);
+                    var _defaultListLimits = angular.copy(_globalDefaultLimits);
 
                     this.idField = function (fieldName) {
                         _options.idField = fieldName;
