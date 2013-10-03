@@ -136,14 +136,11 @@
                         });
                     });
 
-                    this.verb('list', function (page, perPage, cfg) {
+                    this.verb('list', function (params, cfg) {
                         return angular.extend(cfg || {}, {
                             method: 'GET',
                             url: '',
-                            params: {
-                                page: page || _defaultListLimits.page,
-                                perPage: perPage || _defaultListLimits.perPage
-                            }
+                            params: params || {}
                         });
                     });
 
