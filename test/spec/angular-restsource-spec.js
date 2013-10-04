@@ -161,6 +161,119 @@ describe('Service: Restsource', function () {
 
         });
 
+        describe('promise.success', function () {
+
+            it('should be called with response.data.body, response.status, response.headers, response.config', function () {
+                $httpBackend.expectPUT('/api/user/123', theUser).respond(theResponse);
+
+                userResource.update(theUser).success(function (body, status, headers, config) {
+                    expect(body).toBe(theResponseBody);
+                    expect(status).toBe(200);
+                    expect(headers).toBeDefined();
+                    expect(config).toBeDefined();
+                });
+
+                $httpBackend.flush();
+            });
+
+            it('should be called with undefined if response has no body', function () {
+                $httpBackend.expectPUT('/api/user/123', theUser).respond({});
+
+                userResource.update(theUser).success(function (body, status, headers, config) {
+                    expect(body).toBeUndefined();
+                    expect(status).toBe(200);
+                    expect(headers).toBeDefined();
+                    expect(config).toBeDefined();
+                });
+
+                $httpBackend.flush();
+            });
+
+            it('should be called with undefined if response is empty', function () {
+                $httpBackend.expectPUT('/api/user/123', theUser).respond();
+
+                userResource.update(theUser).success(function (body, status, headers, config) {
+                    expect(body).toBeUndefined();
+                    expect(status).toBe(200);
+                    expect(headers).toBeDefined();
+                    expect(config).toBeDefined();
+                });
+
+                $httpBackend.flush();
+            });
+
+            it('should not reject response body of false', function () {
+                $httpBackend.expectPUT('/api/user/123', theUser).respond({body: false});
+
+                userResource.update(theUser).success(function (body, status, headers, config) {
+                    expect(body).toBe(false);
+                    expect(status).toBe(200);
+                    expect(headers).toBeDefined();
+                    expect(config).toBeDefined();
+                });
+
+                $httpBackend.flush();
+            });
+
+        });
+
+        describe('promise.error', function () {
+
+            it('should be called with response.data.error, response.status, response.headers, response.config', function () {
+                var apiError = {
+                    message: 'foo'
+                };
+
+                $httpBackend.expectPUT('/api/user/123', theUser).respond(500, {
+                    error: apiError
+                });
+
+                userResource.update(theUser).error(function (error, status, headers, config) {
+                    expect(error).toBe(apiError);
+                    expect(status).toBe(500);
+                    expect(headers).toBeDefined();
+                    expect(config).toBeDefined();
+                });
+
+                $httpBackend.flush();
+            });
+
+            it('should be called with empty error object if response body has no error object', function () {
+                var apiError = {
+                    message: 'foo'
+                };
+
+                $httpBackend.expectPUT('/api/user/123', theUser).respond(500, {});
+
+                userResource.update(theUser).error(function (error, status, headers, config) {
+                    expect(error).toBeDefined({});
+                    expect(status).toBe(500);
+                    expect(headers).toBeDefined();
+                    expect(config).toBeDefined();
+                });
+
+                $httpBackend.flush();
+            });
+
+            it('should be called with empty error object if response is empty', function () {
+                var apiError = {
+                    message: 'foo'
+                };
+
+                $httpBackend.expectPUT('/api/user/123', theUser).respond(500);
+
+                userResource.update(theUser).error(function (error, status, headers, config) {
+                    expect(error).toBeDefined({});
+                    expect(status).toBe(500);
+                    expect(headers).toBeDefined();
+                    expect(config).toBeDefined();
+                });
+
+                $httpBackend.flush();
+            });
+
+        });
+
     });
 
 });

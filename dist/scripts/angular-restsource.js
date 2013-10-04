@@ -1,5 +1,5 @@
 /**! 
- * angular-restsource v0.2.0
+ * angular-restsource v0.2.1
  * Copyright (c) 2013 Ares Project Management LLC <code@prismondemand.com>
  */
 (function () {
@@ -218,23 +218,26 @@
         $provide.factory('bodyResponseInterceptor', ['$q', function ($q) {
             return function (httpPromise) {
                 var promise = httpPromise.then(function (response) {
-                    if (response.data.error || !response.data.body) {
+                    var data = response.data || {};
+                    if (data.error || data.body === undefined) {
                         return $q.reject(response);
                     }
-                    return response.data.body;
+                    return data.body;
                 });
 
                 // Retain the $httpPromise API
 
                 promise.success = function (fn) {
                     httpPromise.then(function (response) {
-                        fn(response.data.body, response.status, response.headers, response.config);
+                        var data = response.data || {};
+                        fn(data.body, response.status, response.headers, response.config);
                     });
                     return promise;
                 };
                 promise.error = function (fn) {
                     httpPromise.then(null, function (response) {
-                        fn(response.data.error, response.status, response.headers, response.config);
+                        var data = response.data || {};
+                        fn(data.error || {}, response.status, response.headers, response.config);
                     });
                     return promise;
                 };
