@@ -59,7 +59,7 @@ describe('Service: Restsource', function () {
 
             var promise = userResource.create(theUser);
             promise.success(function (body) {
-                expect(body).toBe(theResponseBody);
+                expect(body).toEqual(theResponseBody);
             });
 
             $httpBackend.flush();
@@ -70,7 +70,7 @@ describe('Service: Restsource', function () {
             $httpBackend.expectGET('/api/user/123abc').respond(theResponse);
 
             userResource.read('123abc').success(function (body) {
-                expect(body).toBe(theResponseBody);
+                expect(body).toEqual(theResponseBody);
             });
 
             $httpBackend.flush();
@@ -81,7 +81,7 @@ describe('Service: Restsource', function () {
             $httpBackend.expectGET('/api/user?page=1&perPage=25').respond(theResponse);
 
             userResource.list().success(function (body) {
-                expect(body).toBe(theResponseBody);
+                expect(body).toEqual(theResponseBody);
             });
 
             $httpBackend.flush();
@@ -93,7 +93,7 @@ describe('Service: Restsource', function () {
             $httpBackend.expectGET('/api/user?page=2&perPage=5').respond(theResponse);
 
             userResource.list(2, 5).success(function (body) {
-                expect(body).toBe(theResponseBody);
+                expect(body).toEqual(theResponseBody);
             });
 
             $httpBackend.flush();
@@ -104,7 +104,7 @@ describe('Service: Restsource', function () {
             $httpBackend.expectPUT('/api/user/123', theUser).respond(theResponse);
 
             userResource.update(theUser).success(function (body) {
-                expect(body).toBe(theResponseBody);
+                expect(body).toEqual(theResponseBody);
             });
 
             $httpBackend.flush();
@@ -114,7 +114,7 @@ describe('Service: Restsource', function () {
             $httpBackend.expectDELETE('/api/user/123abc').respond(theResponse);
 
             userResource.delete('123abc').success(function (body) {
-                expect(body).toBe(theResponseBody);
+                expect(body).toEqual(theResponseBody);
             });
 
             $httpBackend.flush();
@@ -127,7 +127,7 @@ describe('Service: Restsource', function () {
                 $httpBackend.expectGET('/api/user/123abc/name').respond(theResponse);
 
                 userResource.readName('123abc').success(function (body) {
-                    expect(body).toBe(theResponseBody);
+                    expect(body).toEqual(theResponseBody);
                 });
 
                 $httpBackend.flush();
@@ -143,7 +143,7 @@ describe('Service: Restsource', function () {
                 $httpBackend.expectPOST('/api/user', newUser).respond(theResponse);
 
                 userResource.save(newUser).success(function (body) {
-                    expect(body).toBe(theResponseBody);
+                    expect(body).toEqual(theResponseBody);
                 });
 
                 $httpBackend.flush();
@@ -153,7 +153,7 @@ describe('Service: Restsource', function () {
                 $httpBackend.expectPUT('/api/user/123', existingUser).respond(theResponse);
 
                 userResource.save(existingUser).success(function (body) {
-                    expect(body).toBe(theResponseBody);
+                    expect(body).toEqual(theResponseBody);
                 });
 
                 $httpBackend.flush();
@@ -167,7 +167,7 @@ describe('Service: Restsource', function () {
                 $httpBackend.expectPUT('/api/user/123', theUser).respond(theResponse);
 
                 userResource.update(theUser).success(function (body, status, headers, config) {
-                    expect(body).toBe(theResponseBody);
+                    expect(body).toEqual(theResponseBody);
                     expect(status).toBe(200);
                     expect(headers).toBeDefined();
                     expect(config).toBeDefined();
@@ -229,7 +229,7 @@ describe('Service: Restsource', function () {
                 });
 
                 userResource.update(theUser).error(function (error, status, headers, config) {
-                    expect(error).toBe(apiError);
+                    expect(error).toEqual(apiError);
                     expect(status).toBe(500);
                     expect(headers).toBeDefined();
                     expect(config).toBeDefined();

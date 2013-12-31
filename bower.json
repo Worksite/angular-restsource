@@ -1,44 +1,44 @@
 {
-    "name": "angular-restsource",
-    "version": "0.2.2",
-    "author": "Ares Project Management LLC <code@prismondemand.com>",
-    "homepage": "https://github.com/AresProjectManagement/angular-restsource",
-    "repository": {
-        "type": "git",
-        "url": "git://github.com/AresProjectManagement/angular-restsource.git"
-    },
-    "bugs": {
-        "url": "https://github.com/AresProjectManagement/angular-restsource/issues"
-    },
-    "main": [
-        "dist/angular-restsource.js",
-        "dist/angular-restsource.min.js"
-    ],
-    "ignore": [
-        "app",
-        "test",
-        "data",
-        ".idea",
-        ".tmp",
-        "node_modules",
-        ".jshintrc",
-        ".travis.yml",
-        "karma.conf.js",
-        "karma-e2e.conf.js",
-        "Gruntfile.js",
-        "package.json",
-        "Makefile"
-    ],
-    "dependencies": {
-        "angular": "1.0 - 1.2"
-    },
-    "devDependencies": {
-        "angular-mocks": "~1.2.0",
-        "angular-scenario": "~1.2.0",
-        "angular-route": "~1.2.0",
-        "sass-bootstrap": "~2.3.1",
-        "json3": "~3.2.4",
-        "es5-shim": "~2.0.8",
-        "bootstrap": "~3.0.0-rc1"
-    }
+  "name": "angular-restsource",
+  "version": "0.2.3",
+  "author": "Ares Project Management LLC <code@prismondemand.com>",
+  "homepage": "https://github.com/AresProjectManagement/angular-restsource",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/AresProjectManagement/angular-restsource.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AresProjectManagement/angular-restsource/issues"
+  },
+  "main": [
+    "dist/angular-restsource.js",
+    "dist/angular-restsource.min.js"
+  ],
+  "ignore": [
+    "app",
+    "test",
+    "data",
+    ".idea",
+    ".tmp",
+    "node_modules",
+    ".jshintrc",
+    ".travis.yml",
+    "karma.conf.js",
+    "karma-e2e.conf.js",
+    "Gruntfile.js",
+    "package.json",
+    "Makefile"
+  ],
+  "dependencies": {
+    "angular": "~1.2"
+  },
+  "devDependencies": {
+    "angular-mocks": "~1.2",
+    "angular-scenario": "~1.2",
+    "angular-route": "~1.2",
+    "sass-bootstrap": "~2.3.1",
+    "json3": "~3.2.4",
+    "es5-shim": "~2.0.8",
+    "bootstrap": "~3.0.0-rc1"
+  }
 }

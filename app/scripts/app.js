@@ -63,4 +63,7 @@ angular.module('angular-restsource-demo-app', ['ngRoute', 'angular-restsource'])
 
         // Allow CORS requests
         $httpProvider.defaults.useXDomain = true;
+    }])
+    .config(['$parseProvider', function ($parseProvider) {
+        $parseProvider.unwrapPromises(true);
     }]);
