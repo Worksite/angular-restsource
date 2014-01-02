@@ -3,6 +3,7 @@
 > Restful resources for AngularJS
 
 [![Build Status](https://travis-ci.org/AresProjectManagement/angular-restsource.png?branch=master)](https://travis-ci.org/AresProjectManagement/angular-restsource)
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/AresProjectManagement/angular-restsource/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
 
 `angular-restsource` allows you to easily define `RESTful` API clients with very little boilerplate.
 
