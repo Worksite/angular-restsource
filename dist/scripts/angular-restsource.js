@@ -1,5 +1,5 @@
 /**! 
- * angular-restsource v0.2.3
+ * angular-restsource v0.2.4
  * Copyright (c) 2013 Ares Project Management LLC <code@prismondemand.com>
  */
 (function () {
