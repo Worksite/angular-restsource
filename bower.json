@@ -11,8 +11,7 @@
     "url": "https://github.com/AresProjectManagement/angular-restsource/issues"
   },
   "main": [
-    "dist/angular-restsource.js",
-    "dist/angular-restsource.min.js"
+    "dist/scripts/angular-restsource.js"
   ],
   "ignore": [
     "app",

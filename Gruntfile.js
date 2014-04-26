@@ -1,5 +1,4 @@
 'use strict';
-var lrSnippet = require('grunt-contrib-livereload/lib/utils').livereloadSnippet;
 var mountFolder = function (connect, dir) {
     return connect.static(require('path').resolve(dir));
 };
@@ -14,18 +13,12 @@ module.exports = function (grunt) {
         tmp: '.tmp'
     };
 
-    try {
-        yeomanConfig.app = require('./bower.json').appPath || yeomanConfig.app;
-    } catch (e) {
-    }
-
     grunt.initConfig({
         yeoman: yeomanConfig,
         pkg: grunt.file.readJSON('bower.json'),
         lifecycle: {
             validate: [
-                'jshint',
-                'csslint'
+                'jshint'
             ],
             compile: [],
             test: [
@@ -45,6 +38,9 @@ module.exports = function (grunt) {
             deploy: []
         },
         watch: {
+            options: {
+                livereload: 35732
+            },
             assets: {
                 files: [
                     '{<%= yeoman.src %>,<%= yeoman.app %>}/templates/{,*/}*.html',
@@ -52,47 +48,29 @@ module.exports = function (grunt) {
                     '{<%= yeoman.src %>,<%= yeoman.app %>}/scripts/{,*/}*.js'
                 ],
                 tasks: ['phase-compile', 'phase-package']
-            },
-            livereload: {
-                files: [
-                    '<%= yeoman.dist %>/{,*/}*.html',
-                    '<%= yeoman.dist %>/styles/{,*/}*.css',
-                    '<%= yeoman.dist %>/scripts/{,*/}*.js',
-                    '<%= yeoman.app %>/images/{,*/}*.{png,jpg,jpeg,gif,webp,svg}'
-                ],
-                tasks: ['livereload']
             }
         },
         connect: {
             options: {
-                port: 9000,
-                // Change this to '0.0.0.0' to access the server from outside.
-                hostname: 'localhost'
+                hostname: 'localhost',
+                middleware: function (connect) {
+                    return [
+                        mountFolder(connect, yeomanConfig.dist),
+                        mountFolder(connect, yeomanConfig.app),
+                        mountFolder(connect, yeomanConfig.tmp),
+                        mountFolder(connect, yeomanConfig.src),
+                        mountFolder(connect, 'test')
+                    ];
+                }
             },
             livereload: {
                 options: {
-                    middleware: function (connect) {
-                        return [
-                            lrSnippet,
-                            mountFolder(connect, yeomanConfig.dist),
-                            mountFolder(connect, yeomanConfig.app),
-                            mountFolder(connect, yeomanConfig.tmp),
-                            mountFolder(connect, 'test')
-                        ];
-                    }
+                    port: 9000
                 }
             },
             test: {
                 options: {
-                    port: 9090,
-                    middleware: function (connect) {
-                        return [
-                            mountFolder(connect, yeomanConfig.dist),
-                            mountFolder(connect, yeomanConfig.app),
-                            mountFolder(connect, yeomanConfig.tmp),
-                            mountFolder(connect, 'test')
-                        ];
-                    }
+                    port: 9090
                 }
             }
         },
@@ -126,16 +104,6 @@ module.exports = function (grunt) {
                 '<%= yeoman.app %>/scripts/{,*/}*.js'
             ]
         },
-        csslint: {
-            options: {
-                csslintrc: '.csslintrc'
-            },
-            src: {
-                src: [
-                    '<%= yeoman.tmp %>/styles/**/*.css'
-                ]
-            }
-        },
         karma: {
             unit: {
                 configFile: 'karma.conf.js',
@@ -153,32 +121,6 @@ module.exports = function (grunt) {
                 configFile: 'karma-e2e.conf.js',
                 browsers: ['Chrome'],
                 runnerPort: 9100
-            }
-        },
-        compass: {
-            options: {
-                cssDir: '<%= yeoman.tmp %>/styles',
-                importPath: '<%= yeoman.app %>/components',
-                relativeAssets: true
-            },
-            src: {
-                options: {
-                    sassDir: '<%= yeoman.src %>/styles',
-                    imagesDir: '<%= yeoman.src %>/images',
-                    javascriptsDir: '<%= yeoman.src %>/scripts',
-                    fontsDir: '<%= yeoman.src %>/styles/fonts',
-                    outputStyle: 'compact',
-                    noLineComments: true
-                }
-            },
-            app: {
-                options: {
-                    sassDir: '<%= yeoman.app %>/styles',
-                    imagesDir: '<%= yeoman.app %>/images',
-                    javascriptsDir: '<%= yeoman.app %>/scripts',
-                    fontsDir: '<%= yeoman.app %>/styles/fonts',
-                    debugInfo: true
-                }
             }
         },
         concat: {
@@ -214,13 +156,35 @@ module.exports = function (grunt) {
                 }
             }
         },
-        bumpup: ['package.json', 'bower.json']
+        compass: {
+            options: {
+                sassDir: '<%= yeoman.app %>/styles',
+                cssDir: '.tmp/styles',
+                imagesDir: '<%= yeoman.app %>/images',
+                javascriptsDir: '<%= yeoman.app %>/scripts',
+                fontsDir: '<%= yeoman.app %>/styles/fonts',
+                importPath: [
+                    '<%= yeoman.app %>/components',
+                    'src/styles'
+                ],
+                relativeAssets: true
+            },
+            dist: {
+                options: {
+                    debugInfo: false
+                }
+            },
+            server: {
+                options: {
+                    debugInfo: true
+                }
+            }
+        },
+        bumpup: ['bower.json', 'package.json']
     });
 
     // load all grunt tasks
     require('matchdep').filterDev('grunt-*').forEach(grunt.loadNpmTasks);
-
-    grunt.renameTask('regarde', 'watch');
 
     grunt.registerTask('bump', function (type) {
         type = type ? type : 'patch';
@@ -247,8 +211,8 @@ module.exports = function (grunt) {
 
     grunt.registerTask('server', [
         'clean',
-        'package',
-        'livereload-start',
+        'phase-compile',
+        'phase-package',
         'connect:livereload',
         'express:dev',
         'open',
