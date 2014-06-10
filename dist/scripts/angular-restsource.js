@@ -150,7 +150,7 @@
                     };
 
                     this.verb('create', function (record, cfg) {
-                        return angular.extend(cfg || {}, {
+                        return angular.extend(cfg ? angular.copy(cfg) : {}, {
                             method: 'POST',
                             url: '',
                             data: record
@@ -158,14 +158,14 @@
                     });
 
                     this.verb('read', function (id, cfg) {
-                        return angular.extend(cfg || {}, {
+                        return angular.extend(cfg ? angular.copy(cfg) : {}, {
                             method: 'GET',
                             url: '/' + id
                         });
                     });
 
                     this.verb('update', function (record, cfg) {
-                        return angular.extend(cfg || {}, {
+                        return angular.extend(cfg ? angular.copy(cfg) : {}, {
                             method: 'PUT',
                             url: '/' + record[_options.idField],
                             data: record
@@ -173,7 +173,7 @@
                     });
 
                     this.verb('list', function (page, perPage, cfg) {
-                        return angular.extend(cfg || {}, {
+                        return angular.extend(cfg ? angular.copy(cfg) : {}, {
                             method: 'GET',
                             url: '',
                             params: {
@@ -184,7 +184,7 @@
                     });
 
                     this.verb('delete', function (id, cfg) {
-                        return angular.extend(cfg || {}, {
+                        return angular.extend(cfg ? angular.copy(cfg) : {}, {
                             method: 'DELETE',
                             url: '/' + id
                         });
