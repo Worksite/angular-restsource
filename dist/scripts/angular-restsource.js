@@ -1,5 +1,5 @@
 /**! 
- * angular-restsource v0.2.4
+ * angular-restsource v0.2.5
  * Copyright (c) 2013 Ares Project Management LLC <code@prismondemand.com>
  */
 (function () {
@@ -8,16 +8,18 @@
     /**
      * @param $http
      * @param $q
+     * @param $parse
      * @param {String} rootUrl
      * @param {Object} [options]
      * @constructor
      */
-    var Restsource = function ($http, $q, rootUrl, options) {
+    var Restsource = function ($http, $q, $parse, rootUrl, options) {
         var _opts = angular.extend({
             idField: 'id',
             responseInterceptors: [],
             httpConfig: {},
-            verbs: {}
+            verbs: {},
+            pathParams: {}
         }, options);
 
         var _self = this;
@@ -45,11 +47,26 @@
             }
         });
 
+        function interpolateUrl(url, pathParams) {
+            if (!url) {
+                return url;
+            }
+            var matches = url.match(/{{[\w_\.]+}}/g);
+            if (!matches) {
+                return url;
+            }
+            return matches.reduce(function (url, match) {
+                var field = match.replace(/[\{\}]+/g, '');
+                var value = $parse(field)(angular.extend({}, _opts.pathParams, pathParams || {}));
+                return url.replace(match, value);
+            }, url);
+        }
+
         // Create verb methods
         angular.forEach(_opts.verbs, function (verb, name) {
             _self[name] = function () {
                 var config = _defaultCfg(verb.apply(_self, arguments));
-                config.url = rootUrl + config.url;
+                config.url = interpolateUrl(rootUrl + config.url, config.pathParams);
                 return _intercept($http(config));
             };
         });
@@ -59,7 +76,7 @@
         };
 
         this.clone = function (opts) {
-            return new Restsource($http, $q, rootUrl, angular.extend(_opts, opts));
+            return new Restsource($http, $q, $parse, rootUrl, angular.extend(_opts, opts));
         };
     };
 
@@ -72,7 +89,8 @@
                 idField: 'id',
                 httpConfig: {},
                 verbs: {},
-                responseInterceptors: []
+                responseInterceptors: [],
+                pathParams: {}
             };
             var _globalUseBodyResponseInterceptor = true;
             var _globalDefaultLimits = {
@@ -105,6 +123,11 @@
 
             this.addResponseInterceptor = function (interceptor) {
                 _globalOptions.responseInterceptors.push(interceptor);
+                return _self;
+            };
+
+            this.pathParams = function (pathParams) {
+                _globalOptions.pathParams = pathParams;
                 return _self;
             };
 
@@ -144,6 +167,11 @@
                         return _self;
                     };
 
+                    this.pathParams = function (pathParams) {
+                        _options.pathParams = pathParams;
+                        return _self;
+                    };
+
                     this.verb = function (name, argumentTransformer) {
                         _options.verbs[name] = argumentTransformer;
                         return _self;
@@ -160,14 +188,20 @@
                     this.verb('read', function (id, cfg) {
                         return angular.extend(cfg ? angular.copy(cfg) : {}, {
                             method: 'GET',
-                            url: '/' + id
+                            url: '/{{id}}',
+                            pathParams: {
+                                id: id
+                            }
                         });
                     });
 
                     this.verb('update', function (record, cfg) {
                         return angular.extend(cfg ? angular.copy(cfg) : {}, {
                             method: 'PUT',
-                            url: '/' + record[_options.idField],
+                            url: '/{{id}}',
+                            pathParams: {
+                                id: record[_options.idField]
+                            },
                             data: record
                         });
                     });
@@ -186,7 +220,10 @@
                     this.verb('delete', function (id, cfg) {
                         return angular.extend(cfg ? angular.copy(cfg) : {}, {
                             method: 'DELETE',
-                            url: '/' + id
+                            url: '/{{id}}',
+                            pathParams: {
+                                id: id
+                            }
                         });
                     });
 
@@ -199,6 +236,9 @@
                             interceptors.push(angular.isString(interceptor) ? $injector.get(interceptor) : $injector.invoke(interceptor));
                         });
                         _options.responseInterceptors = interceptors;
+                        if (angular.isString(_options.pathParams) || angular.isFunction(_options.pathParams) || angular.isArray(_options.pathParams)) {
+                            _options.pathParams = angular.isString(_options.pathParams) ? $injector.get(_options.pathParams) : $injector.invoke(_options.pathParams);
+                        }
                         return restsource(url, _options);
                     };
                     this.$get.$inject = ['$injector', 'restsource'];
@@ -206,12 +246,12 @@
 
             };
 
-            this.$get = function ($http, $q) {
+            this.$get = function ($http, $q, $parse) {
                 return function (url, cfg) {
-                    return new Restsource($http, $q, url, cfg);
+                    return new Restsource($http, $q, $parse, url, cfg);
                 };
             };
-            this.$get.$inject = ['$http', '$q'];
+            this.$get.$inject = ['$http', '$q', '$parse'];
 
         });
 
