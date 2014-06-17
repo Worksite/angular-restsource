@@ -10,12 +10,26 @@ describe('Service: Restsource', function () {
     // load the service's module
     beforeEach(module('angular-restsource'));
 
-    beforeEach(module(function (restsourceProvider) {
-        restsourceProvider.provide('userRestsource', '/api/user')
+    beforeEach(module(function ($provide, restsourceProvider) {
+
+        $provide.value('currentProject', {
+            id: 123
+        });
+
+        restsourceProvider.pathParams(['currentProject', function (currentProject) {
+            return {
+                projectId: currentProject.id
+            };
+        }]);
+
+        restsourceProvider.provide('userRestsource', '/api/project/{{projectId}}/user')
             .verb('readName', function (id, cfg) {
                 return angular.extend(cfg || {}, {
                     method: 'GET',
-                    url: '/' + id + '/name'
+                    url: '/{{id}}/name',
+                    pathParams: {
+                        id: id
+                    }
                 });
             });
     }));
@@ -55,7 +69,7 @@ describe('Service: Restsource', function () {
         }));
 
         it('should send a request to create a user', function () {
-            $httpBackend.expectPOST('/api/user', theUser).respond(theResponse);
+            $httpBackend.expectPOST('/api/project/123/user', theUser).respond(theResponse);
 
             var promise = userResource.create(theUser);
             promise.success(function (body) {
@@ -67,7 +81,7 @@ describe('Service: Restsource', function () {
 
         it('should send a request to read a user', function () {
 
-            $httpBackend.expectGET('/api/user/123abc').respond(theResponse);
+            $httpBackend.expectGET('/api/project/123/user/123abc').respond(theResponse);
 
             userResource.read('123abc').success(function (body) {
                 expect(body).toEqual(theResponseBody);
@@ -78,7 +92,7 @@ describe('Service: Restsource', function () {
 
         it('should send a request to list users with default page and perPage params', function () {
 
-            $httpBackend.expectGET('/api/user?page=1&perPage=25').respond(theResponse);
+            $httpBackend.expectGET('/api/project/123/user?page=1&perPage=25').respond(theResponse);
 
             userResource.list().success(function (body) {
                 expect(body).toEqual(theResponseBody);
@@ -90,7 +104,7 @@ describe('Service: Restsource', function () {
 
         it('should send a request to list users with page and perPage params', function () {
 
-            $httpBackend.expectGET('/api/user?page=2&perPage=5').respond(theResponse);
+            $httpBackend.expectGET('/api/project/123/user?page=2&perPage=5').respond(theResponse);
 
             userResource.list(2, 5).success(function (body) {
                 expect(body).toEqual(theResponseBody);
@@ -101,7 +115,7 @@ describe('Service: Restsource', function () {
         });
 
         it('should send a request to update a user', function () {
-            $httpBackend.expectPUT('/api/user/123', theUser).respond(theResponse);
+            $httpBackend.expectPUT('/api/project/123/user/123', theUser).respond(theResponse);
 
             userResource.update(theUser).success(function (body) {
                 expect(body).toEqual(theResponseBody);
@@ -111,7 +125,7 @@ describe('Service: Restsource', function () {
         });
 
         it('should send a request to delete a user', function () {
-            $httpBackend.expectDELETE('/api/user/123abc').respond(theResponse);
+            $httpBackend.expectDELETE('/api/project/123/user/123abc').respond(theResponse);
 
             userResource.delete('123abc').success(function (body) {
                 expect(body).toEqual(theResponseBody);
@@ -124,7 +138,7 @@ describe('Service: Restsource', function () {
 
             it('should send a request to read a user\'s name', function () {
 
-                $httpBackend.expectGET('/api/user/123abc/name').respond(theResponse);
+                $httpBackend.expectGET('/api/project/123/user/123abc/name').respond(theResponse);
 
                 userResource.readName('123abc').success(function (body) {
                     expect(body).toEqual(theResponseBody);
@@ -140,7 +154,7 @@ describe('Service: Restsource', function () {
                 newUser = {name: 'Yo Momma'};
 
             it('should send a request to create the user when the user has no ID', function () {
-                $httpBackend.expectPOST('/api/user', newUser).respond(theResponse);
+                $httpBackend.expectPOST('/api/project/123/user', newUser).respond(theResponse);
 
                 userResource.save(newUser).success(function (body) {
                     expect(body).toEqual(theResponseBody);
@@ -150,7 +164,7 @@ describe('Service: Restsource', function () {
             });
 
             it('should send a request to update the user when the user has an ID', function () {
-                $httpBackend.expectPUT('/api/user/123', existingUser).respond(theResponse);
+                $httpBackend.expectPUT('/api/project/123/user/123', existingUser).respond(theResponse);
 
                 userResource.save(existingUser).success(function (body) {
                     expect(body).toEqual(theResponseBody);
@@ -164,7 +178,7 @@ describe('Service: Restsource', function () {
         describe('promise.success', function () {
 
             it('should be called with response.data.body, response.status, response.headers, response.config', function () {
-                $httpBackend.expectPUT('/api/user/123', theUser).respond(theResponse);
+                $httpBackend.expectPUT('/api/project/123/user/123', theUser).respond(theResponse);
 
                 userResource.update(theUser).success(function (body, status, headers, config) {
                     expect(body).toEqual(theResponseBody);
@@ -177,7 +191,7 @@ describe('Service: Restsource', function () {
             });
 
             it('should be called with undefined if response has no body', function () {
-                $httpBackend.expectPUT('/api/user/123', theUser).respond({});
+                $httpBackend.expectPUT('/api/project/123/user/123', theUser).respond({});
 
                 userResource.update(theUser).success(function (body, status, headers, config) {
                     expect(body).toBeUndefined();
@@ -190,7 +204,7 @@ describe('Service: Restsource', function () {
             });
 
             it('should be called with undefined if response is empty', function () {
-                $httpBackend.expectPUT('/api/user/123', theUser).respond();
+                $httpBackend.expectPUT('/api/project/123/user/123', theUser).respond();
 
                 userResource.update(theUser).success(function (body, status, headers, config) {
                     expect(body).toBeUndefined();
@@ -203,7 +217,7 @@ describe('Service: Restsource', function () {
             });
 
             it('should not reject response body of false', function () {
-                $httpBackend.expectPUT('/api/user/123', theUser).respond({body: false});
+                $httpBackend.expectPUT('/api/project/123/user/123', theUser).respond({body: false});
 
                 userResource.update(theUser).success(function (body, status, headers, config) {
                     expect(body).toBe(false);
@@ -224,7 +238,7 @@ describe('Service: Restsource', function () {
                     message: 'foo'
                 };
 
-                $httpBackend.expectPUT('/api/user/123', theUser).respond(500, {
+                $httpBackend.expectPUT('/api/project/123/user/123', theUser).respond(500, {
                     error: apiError
                 });
 
@@ -243,7 +257,7 @@ describe('Service: Restsource', function () {
                     message: 'foo'
                 };
 
-                $httpBackend.expectPUT('/api/user/123', theUser).respond(500, {});
+                $httpBackend.expectPUT('/api/project/123/user/123', theUser).respond(500, {});
 
                 userResource.update(theUser).error(function (error, status, headers, config) {
                     expect(error).toBeDefined({});
@@ -260,7 +274,7 @@ describe('Service: Restsource', function () {
                     message: 'foo'
                 };
 
-                $httpBackend.expectPUT('/api/user/123', theUser).respond(500);
+                $httpBackend.expectPUT('/api/project/123/user/123', theUser).respond(500);
 
                 userResource.update(theUser).error(function (error, status, headers, config) {
                     expect(error).toBeDefined({});

@@ -34,7 +34,7 @@ var users = {
 var counter = 4;
 
 // Create
-app.put('/api/user', function (req, res) {
+app.post('/api/user', function (req, res) {
     var user = req.body;
     user.id = counter;
     users[user.id] = user;
@@ -59,7 +59,7 @@ app.get('/api/user', function (req, res) {
 });
 
 // Update
-app.post('/api/user', function (req, res) {
+app.put('/api/user/:id', function (req, res) {
     var user = req.body;
     users[user.id] = user;
     res.json({body: true});
