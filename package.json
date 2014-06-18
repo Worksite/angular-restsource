@@ -1,6 +1,6 @@
 {
   "name": "angular-restsource",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Restful resources for AngularJS",
   "author": "Ares Project Management, LLC",
   "dependencies": {},
