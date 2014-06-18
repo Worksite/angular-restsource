@@ -21,7 +21,7 @@
         var _self = this;
 
         function _defaultCfg(cfg) {
-            return angular.extend(_opts.httpConfig, cfg);
+            return angular.extend({}, _opts.httpConfig, cfg);
         }
 
         function _intercept(httpPromise) {
@@ -51,10 +51,11 @@
             if (!matches) {
                 return url;
             }
+            var params = angular.extend({}, _opts.pathParams, pathParams);
             return matches.reduce(function (url, match) {
                 var field = match.replace(/[\{\}]+/g, '');
-                var value = $parse(field)(angular.extend({}, _opts.pathParams, pathParams || {}));
-                return url.replace(match, value);
+                var value = $parse(field)(params);
+                return url.replace(match, angular.isFunction(value) ? value() : value);
             }, url);
         }
 
@@ -72,7 +73,7 @@
         };
 
         this.clone = function (opts) {
-            return new Restsource($http, $q, $parse, rootUrl, angular.extend(_opts, opts));
+            return new Restsource($http, $q, $parse, rootUrl, angular.extend({}, _opts, opts));
         };
     };
 
@@ -168,59 +169,78 @@
                         return _self;
                     };
 
-                    this.verb = function (name, argumentTransformer) {
-                        _options.verbs[name] = argumentTransformer;
+                    this.verb = function (name) {
+                        var args = Array.prototype.slice.call(arguments);
+                        var argumentTransformer;
+                        var url;
+
+                        if (args.length === 3) {
+                            url = args[1];
+                            argumentTransformer = args[2];
+                        } else if (args.length === 2) {
+                            if (angular.isString(args[1])) {
+                                url = args[1];
+                                argumentTransformer = _options.verbs[name];
+                            } else if (angular.isFunction(args[1])) {
+                                argumentTransformer = args[1];
+                            }
+                        }
+                        _options.verbs[name] = !url ? argumentTransformer : function () {
+                            var config = argumentTransformer.apply({}, arguments);
+                            config.url = url;
+                            return config;
+                        };
                         return _self;
                     };
 
                     this.verb('create', function (record, cfg) {
-                        return angular.extend(cfg ? angular.copy(cfg) : {}, {
+                        return angular.extend({
                             method: 'POST',
                             url: '',
+                            pathParams: record,
                             data: record
-                        });
+                        }, cfg);
                     });
 
                     this.verb('read', function (id, cfg) {
-                        return angular.extend(cfg ? angular.copy(cfg) : {}, {
+                        return angular.extend({
                             method: 'GET',
                             url: '/{{id}}',
                             pathParams: {
                                 id: id
                             }
-                        });
+                        }, cfg);
                     });
 
                     this.verb('update', function (record, cfg) {
-                        return angular.extend(cfg ? angular.copy(cfg) : {}, {
+                        return angular.extend({
                             method: 'PUT',
                             url: '/{{id}}',
-                            pathParams: {
-                                id: record[_options.idField]
-                            },
+                            pathParams: record,
                             data: record
-                        });
+                        }, cfg);
                     });
 
                     this.verb('list', function (page, perPage, cfg) {
-                        return angular.extend(cfg ? angular.copy(cfg) : {}, {
+                        return angular.extend({
                             method: 'GET',
                             url: '',
                             params: {
                                 page: page || _defaultListLimits.page,
                                 perPage: perPage || _defaultListLimits.perPage
                             }
-                        });
+                        }, cfg);
                     });
 
                     this.verb('delete', function (id, cfg) {
-                        return angular.extend(cfg ? angular.copy(cfg) : {}, {
+                        return angular.extend({
                             method: 'DELETE',
                             url: '/{{id}}',
-                            pathParams: {
+                            pathParams: angular.isObject(id) ? id : {
                                 id: id
-                            }
-                        });
+                            },
+                            data: angular.isObject(id) ? id : undefined
+                        }, cfg);
                     });
 
                     this.$get = function ($injector, restsource) {
