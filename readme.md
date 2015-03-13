@@ -1,7 +1,6 @@
 # angular-restsource
 
-[![Build Status](https://travis-ci.org/AresProjectManagement/angular-restsource.png?branch=master)](https://travis-ci.org/AresProjectManagement/angular-restsource)
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/AresProjectManagement/angular-restsource/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+[![Build Status](https://travis-ci.org/Worksite/angular-restsource.svg?branch=master)](https://travis-ci.org/Worksite/angular-restsource)
 
 > Restful resources for AngularJS
 
@@ -25,7 +24,7 @@ Finally, each `angular-restsource` verb returns a `$http` promise.
 
 ## Install
 
-Download [angular-restsource.js](https://github.com/AresProjectManagement/angular-restsource/blob/master/dist/scripts/angular-restsource.js) or install with bower.
+Download [angular-restsource.js](https://github.com/Worksite/angular-restsource/blob/master/dist/scripts/angular-restsource.js) or install with bower.
 
 ```bash
 $ bower install angular-restsource --save
