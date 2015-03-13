@@ -5,11 +5,12 @@
      * @param $http
      * @param $q
      * @param $parse
+     * @param $log
      * @param {String} rootUrl
      * @param {Object} [options]
      * @constructor
      */
-    var Restsource = function ($http, $q, $parse, rootUrl, options) {
+    var Restsource = function ($http, $q, $parse, $log, rootUrl, options) {
         var _opts = angular.extend({
             idField: 'id',
             responseInterceptors: [],
@@ -24,11 +25,30 @@
             return angular.extend({}, _opts.httpConfig, cfg);
         }
 
-        function _intercept(httpPromise) {
-            angular.forEach(_opts.responseInterceptors, function (responseInterceptor) {
-                httpPromise = responseInterceptor(httpPromise);
-            });
-            return httpPromise;
+        function _interceptRequest(initialConfig) {
+            return _opts.responseInterceptors.reduce(function (config, requestInterceptor) {
+                try {
+                    return angular.isFunction(requestInterceptor.request) ? requestInterceptor.request(config) : config;
+                } catch (e) {
+                    $log.error(e);
+                    return config;
+                }
+            }, initialConfig);
+        }
+
+        function _interceptResponse(initialHttpPromise) {
+            return _opts.responseInterceptors.reduce(function (httpPromise, responseInterceptor) {
+                // handle old HTTP response interceptors
+                if (angular.isFunction(responseInterceptor)) {
+                    return responseInterceptor(httpPromise);
+                }
+                // handle new HTTP response interceptors
+                if (angular.isFunction(responseInterceptor.response)) {
+                    return httpPromise.then(responseInterceptor.response);
+                }
+                $log.warn('**** invalid response interceptor');
+                return httpPromise;
+            }, initialHttpPromise);
         }
 
         Object.defineProperty(this, 'rootUrl', {
@@ -64,7 +84,7 @@
             _self[name] = function () {
                 var config = _defaultCfg(verb.apply(_self, arguments));
                 config.url = interpolateUrl(rootUrl + config.url, config.pathParams);
-                return _intercept($http(config));
+                return _interceptResponse($http(_interceptRequest(config)));
             };
         });
 
@@ -73,7 +93,7 @@
         };
 
         this.clone = function (opts) {
-            return new Restsource($http, $q, $parse, rootUrl, angular.extend({}, _opts, opts));
+            return new Restsource($http, $q, $parse, $log, rootUrl, angular.extend({}, _opts, opts));
         };
     };
 
@@ -262,12 +282,12 @@
 
             };
 
-            this.$get = function ($http, $q, $parse) {
+            this.$get = function ($http, $q, $parse, $log) {
                 return function (url, cfg) {
-                    return new Restsource($http, $q, $parse, url, cfg);
+                    return new Restsource($http, $q, $parse, $log, url, cfg);
                 };
             };
-            this.$get.$inject = ['$http', '$q', '$parse'];
+            this.$get.$inject = ['$http', '$q', '$parse', '$log'];
 
         });
 
