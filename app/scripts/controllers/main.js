@@ -26,7 +26,7 @@ angular.module('angular-restsource-demo-app')
         };
 
         $scope.list = function (page, perPage) {
-            $scope.users = userRestsource.list(page, perPage);
+            $scope.users = userRestsource.list(page, perPage).resolveTo([]);
         };
 
         $scope.update = function (user) {

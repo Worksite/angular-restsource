@@ -21,19 +21,21 @@ angular.module('angular-restsource-demo-app', ['ngRoute', 'angular-restsource'])
             // a function or a service string
 
             // Add a response interceptor to log requests
-            .addResponseInterceptor(['$log', function ($log) {
-                return function (promise) {
-                    var start = new Date();
-                    promise.success(function (body, status, headers, config) {
-                        $log.log([config.method, config.url, status, (new Date() - start) + 'msec'].join(' '));
-                        $log.log('  params: ' + JSON.stringify(config.params));
-                        if (config.data) {
-                            $log.log('  data: ' + JSON.stringify(config.data));
-                        }
-                    });
-                    return promise;
-                };
-            }]);
+            //.addResponseInterceptor(['$log', function ($log) {
+            //    return function (promise) {
+            //        var start = new Date();
+            //        promise.success(function (body, status, headers, config) {
+            //            $log.log([config.method, config.url, status, (new Date() - start) + 'msec'].join(' '));
+            //            $log.log('  params: ' + JSON.stringify(config.params));
+            //            if (config.data) {
+            //                $log.log('  data: ' + JSON.stringify(config.data));
+            //            }
+            //        });
+            //        return promise;
+            //    };
+            //}])
+
+        ;
 
         // Create a userRestsource that pulls data from http://localhost:9999/api/user
         restsourceProvider.provide('userRestsource', 'http://localhost:9999/api/user')
@@ -63,7 +65,4 @@ angular.module('angular-restsource-demo-app', ['ngRoute', 'angular-restsource'])
 
         // Allow CORS requests
         $httpProvider.defaults.useXDomain = true;
-    }])
-    .config(['$parseProvider', function ($parseProvider) {
-        $parseProvider.unwrapPromises(true);
     }]);

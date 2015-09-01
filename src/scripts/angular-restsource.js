@@ -2,15 +2,16 @@
     'use strict';
 
     /**
+     * @param {String} rootUrl
+     * @param {Object} [options]
      * @param $http
      * @param $q
      * @param $parse
      * @param $log
-     * @param {String} rootUrl
-     * @param {Object} [options]
+     * @param PromiseExtensions
      * @constructor
      */
-    var Restsource = function ($http, $q, $parse, $log, rootUrl, options) {
+    var Restsource = function (rootUrl, options, $http, $q, $parse, $log, PromiseExtensions) {
         var _opts = angular.extend({
             idField: 'id',
             responseInterceptors: [],
@@ -37,7 +38,7 @@
         }
 
         function _interceptResponse(initialHttpPromise) {
-            return _opts.responseInterceptors.reduce(function (httpPromise, responseInterceptor) {
+            var httpPromise = _opts.responseInterceptors.reduce(function (httpPromise, responseInterceptor) {
                 // handle old HTTP response interceptors
                 if (angular.isFunction(responseInterceptor)) {
                     return responseInterceptor(httpPromise);
@@ -49,6 +50,24 @@
                 $log.warn('**** invalid response interceptor');
                 return httpPromise;
             }, initialHttpPromise);
+
+            httpPromise.success = function (fn) {
+                initialHttpPromise.then(function (response) {
+                    var data = response.data || {};
+                    fn(data.body, response.status, response.headers, response.config);
+                });
+                return _self;
+            };
+
+            httpPromise.error = function (fn) {
+                initialHttpPromise.then(null, function (response) {
+                    var data = response.data || {};
+                    fn(data.error || {}, response.status, response.headers, response.config);
+                });
+                return _self;
+            };
+
+            return httpPromise;
         }
 
         Object.defineProperty(this, 'rootUrl', {
@@ -84,7 +103,7 @@
             _self[name] = function () {
                 var config = _defaultCfg(verb.apply(_self, arguments));
                 config.url = interpolateUrl(rootUrl + config.url, config.pathParams);
-                return _interceptResponse($http(_interceptRequest(config)));
+                return PromiseExtensions.extend(_interceptResponse($http(_interceptRequest(config))));
             };
         });
 
@@ -93,11 +112,11 @@
         };
 
         this.clone = function (opts) {
-            return new Restsource($http, $q, $parse, $log, rootUrl, angular.extend({}, _opts, opts));
+            return new Restsource(rootUrl, angular.extend({}, _opts, opts), $http, $q, $parse, $log, PromiseExtensions);
         };
     };
 
-    angular.module('angular-restsource', []).config(['$provide', function ($provide) {
+    angular.module('angular-restsource', ['angular-restsource.promise-extensions']).config(['$provide', function ($provide) {
 
         $provide.provider('restsource', function () {
 
@@ -189,27 +208,12 @@
                         return _self;
                     };
 
-                    this.verb = function (name) {
+                    this.verb = function (verbName, request) {
                         var args = Array.prototype.slice.call(arguments);
-                        var argumentTransformer;
-                        var url;
-
-                        if (args.length === 3) {
-                            url = args[1];
-                            argumentTransformer = args[2];
-                        } else if (args.length === 2) {
-                            if (angular.isString(args[1])) {
-                                url = args[1];
-                                argumentTransformer = _options.verbs[name];
-                            } else if (angular.isFunction(args[1])) {
-                                argumentTransformer = args[1];
-                            }
+                        if (!angular.isFunction(request)) {
+                            throw 'Invalid argument: invalid request fn for `' + name + ':' + verbName + '`';
                         }
-                        _options.verbs[name] = !url ? argumentTransformer : function () {
-                            var config = argumentTransformer.apply({}, arguments);
-                            config.url = url;
-                            return config;
-                        };
+                        _options.verbs[verbName] = request;
                         return _self;
                     };
 
@@ -282,43 +286,24 @@
 
             };
 
-            this.$get = function ($http, $q, $parse, $log) {
+            this.$get = function ($http, $q, $parse, $log, PromiseExtensions) {
                 return function (url, cfg) {
-                    return new Restsource($http, $q, $parse, $log, url, cfg);
+                    return new Restsource(url, cfg, $http, $q, $parse, $log, PromiseExtensions);
                 };
             };
-            this.$get.$inject = ['$http', '$q', '$parse', '$log'];
+            this.$get.$inject = ['$http', '$q', '$parse', '$log', 'PromiseExtensions'];
 
         });
 
         $provide.factory('bodyResponseInterceptor', ['$q', function ($q) {
-            return function (httpPromise) {
-                var promise = httpPromise.then(function (response) {
+            return {
+                response: function (response) {
                     var data = response.data || {};
                     if (data.error || data.body === undefined) {
                         return $q.reject(response);
                     }
                     return data.body;
-                });
-
-                // Retain the $httpPromise API
-
-                promise.success = function (fn) {
-                    httpPromise.then(function (response) {
-                        var data = response.data || {};
-                        fn(data.body, response.status, response.headers, response.config);
-                    });
-                    return promise;
-                };
-                promise.error = function (fn) {
-                    httpPromise.then(null, function (response) {
-                        var data = response.data || {};
-                        fn(data.error || {}, response.status, response.headers, response.config);
-                    });
-                    return promise;
-                };
-
-                return promise;
+                }
             };
         }]);
 
