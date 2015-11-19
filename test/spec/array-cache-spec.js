@@ -170,6 +170,19 @@ describe('Module: ArrayCache', function () {
 
             });
 
+            it('should support multiple record arguments', function () {
+
+                expect(arrayCache.length).toBe(3);
+
+                arrayCache.save({id: 4, name: 'ddd'}, {id: 2, name: 'BBB'});
+
+                expect(arrayCache.length).toBe(4);
+
+                expect(arrayCache.read(2).name).toBe('BBB');
+                expect(arrayCache.read(4).name).toBe('ddd');
+
+            });
+
         });
 
         describe('remove', function () {

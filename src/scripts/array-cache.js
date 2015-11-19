@@ -17,15 +17,29 @@
             }, {});
         },
 
+        /**
+         * Avoid leaking arguments which prevents optimizations in JavaScript engines.
+         * See https://github.com/petkaantonov/bluebird/wiki/Optimization-killers#32-leaking-arguments
+         * @param {Arguments|Array} arrayLike
+         * @returns {Array}
+         */
+        toArray: function (arrayLike) {
+            var args = new Array(arrayLike.length);
+            for (var i = 0; i < args.length; ++i) {
+                args[i] = arrayLike[i];
+            }
+            return args;
+        },
+
         // pulled from angular 1.4.4
         isArrayLike: function (obj) {
-            if (obj == null || isWindow(obj)) {
+            if (obj === null || obj === undefined || isWindow(obj)) {
                 return false;
             }
 
             // Support: iOS 8.2 (not reproducible in simulator)
             // "length" in obj used to prevent JIT error (gh-11508)
-            var length = "length" in Object(obj) && obj.length;
+            var length = 'length' in Object(obj) && obj.length;
 
             if (obj.nodeType === NODE_TYPE_ELEMENT && length) {
                 return true;
@@ -92,8 +106,13 @@
         };
 
         this.save = function (record) {
+            if (arguments.length > 1) {
+                return _self.save(ArrayUtils.toArray(arguments));
+            }
             if (angular.isArray(record)) {
-                return record.map(_self.save);
+                return record.map(function (r) {
+                    return _self.save(r);
+                });
             }
             var primaryId = record[_primaryIdField];
             if (primaryId === null || primaryId === undefined) {

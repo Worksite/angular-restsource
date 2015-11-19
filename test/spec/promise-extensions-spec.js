@@ -4,6 +4,26 @@ describe('Service: PromiseExtensions', function () {
     // load the service's module
     beforeEach(module('angular-restsource.promise-extensions'));
 
+    describe('PromiseExtensions class methods', function () {
+
+        describe('isResolvedTo', function () {
+
+            it('should determine if an instance has been augmented by `resolveTo`', inject(function (PromiseExtensions) {
+
+                var promise = PromiseExtensions.when(123);
+
+                var resolveTo = promise.resolveTo({});
+
+                expect(PromiseExtensions.isResolvedTo(resolveTo)).toBe(true);
+                expect(PromiseExtensions.isResolvedTo({})).toBe(false);
+                expect(PromiseExtensions.isResolvedTo([])).toBe(false);
+
+            }));
+
+        });
+
+    });
+
 
     describe('PromiseExtensions instance', function () {
 
@@ -320,129 +340,129 @@ describe('Service: PromiseExtensions', function () {
 
     describe('resolveTo', function () {
 
-        it('should resolve arrays to the passed array instance', inject(function (PromiseExtensions, $rootScope) {
+        var objectPromise;
+        var arrayPromise;
+        var stringPromise;
+        var numberPromise;
+        var booleanPromise;
 
-            var promise = PromiseExtensions.when([1, 2, 3]);
+        beforeEach(inject(function ($q) {
 
-            var records = promise.resolveTo([]);
+            function when(obj) {
+                var promise = $q.when(obj);
+                promise.$r = obj;
+                return promise;
+            }
 
-            expect(records.length).toBe(0);
+            objectPromise = when({a: 1, b: 2, c: 3});
+            arrayPromise = when(['a', 'b', 'c']);
+            stringPromise = when('abc');
+            numberPromise = when(123);
+            booleanPromise = when(true);
+        }));
 
-            expect(records.toString()).toBe('');
-            expect(records.valueOf() instanceof Object).toBe(true);
-            expect(records.$primitive).toBeUndefined();
+        it('it should return a resolved object with a $promise attribute', inject(function (PromiseExtensions, $rootScope) {
+            var obj = PromiseExtensions.resolveTo(objectPromise, {d: 4});
 
-            $rootScope.$digest();
+            expect(obj.$promise).toBeDefined();
+            expect(obj.$promise.$isResolved).toBe(false);
+            expect(obj.$promise.$resolved).toBeUndefined();
 
-            expect(records.length).toBe(3);
-            expect(records[0]).toBe(1);
-            expect(records[1]).toBe(2);
-            expect(records[2]).toBe(3);
+            $rootScope.$apply();
 
-            expect(records.toString()).toBe('1,2,3');
-            expect(records.valueOf() instanceof Object).toBe(true);
-            expect(records.$primitive).toBeUndefined();
+            expect(obj.$promise.$isResolved).toBe(true);
+            expect(obj.$promise.$resolved).toBe(obj);
+        }));
+
+        it('it should throw an exception if the passed a primitive', inject(function (PromiseExtensions) {
+
+
+            expect(function () {
+                PromiseExtensions.resolveTo(objectPromise, '');
+            }).toThrow('Invalid argument: resolved must be an object');
 
         }));
 
-        it('should resolve objects to the passed object instance', inject(function (PromiseExtensions, $rootScope) {
+        it('it should merge an object to an object', inject(function (PromiseExtensions, $rootScope) {
+            var obj = PromiseExtensions.resolveTo(objectPromise, {d: 4});
 
-            var promise = PromiseExtensions.when({id: 11, name: 'a'});
+            expect(Object.keys(obj).sort().join(',')).toBe('d');
+            expect(obj.d).toBe(4);
 
-            var record = promise.resolveTo({});
+            expect(obj.$promise).toBeDefined();
+            expect(obj.$promise.$isResolved).toBe(false);
+            expect(obj.$promise.$resolved).toBeUndefined();
 
-            expect(record.id).toBeUndefined();
-            expect(record.name).toBeUndefined();
+            $rootScope.$apply();
 
-            expect(record.toString()).toBe('[object Object]');
-            expect(record.valueOf() instanceof Object).toBe(true);
-            expect(record.$primitive).toBeUndefined();
+            expect(Object.keys(obj).sort().join(',')).toBe('a,b,c,d');
 
-            $rootScope.$digest();
+            expect(obj.a).toBe(1);
+            expect(obj.b).toBe(2);
+            expect(obj.c).toBe(3);
+            expect(obj.d).toBe(4);
 
-            expect(record.id).toBe(11);
-            expect(record.name).toBe('a');
-
-            expect(record.toString()).toBe('[object Object]');
-            expect(record.valueOf() instanceof Object).toBe(true);
-            expect(record.$primitive).toBeUndefined();
+            expect(obj.$promise.$isResolved).toBe(true);
+            expect(obj.$promise.$resolved).toBe(obj);
         }));
 
-        it('should resolve a string to the passed object instance', inject(function (PromiseExtensions, $rootScope) {
 
-            var promise = PromiseExtensions.when('foo');
+        it('it should merge an array to an object', inject(function (PromiseExtensions, $rootScope) {
+            var obj = PromiseExtensions.resolveTo(arrayPromise, {1: 'x'});
 
-            var record = promise.resolveTo({});
+            expect(Object.keys(obj).sort().join(',')).toBe('1');
+            expect(obj[1]).toBe('x');
 
-            expect(record.toString()).toBe('[object Object]');
-            expect(record.valueOf() instanceof Object).toBe(true);
-            expect(record.$primitive).toBeUndefined();
+            $rootScope.$apply();
 
-            $rootScope.$digest();
+            expect(Object.keys(obj).sort().join(',')).toBe('0,1,2');
 
-            expect(record.toString()).toBe('foo');
-            expect(record.valueOf()).toBe('foo');
-            expect(record.$primitive).toBe('foo');
-
+            expect(obj[0]).toBe('a');
+            expect(obj[1]).toBe('b');
+            expect(obj[2]).toBe('c');
         }));
 
-        it('should resolve a number to the passed object instance', inject(function (PromiseExtensions, $rootScope) {
+        it('it should merge an array to an array', inject(function (PromiseExtensions, $rootScope) {
+            var arr = PromiseExtensions.resolveTo(arrayPromise, ['x']);
 
-            var promise = PromiseExtensions.when(123);
+            expect(arr.length).toBe(1);
+            expect(arr[0]).toBe('x');
 
-            var record = promise.resolveTo({});
+            $rootScope.$apply();
 
-            expect(record.toString()).toBe('[object Object]');
-            expect(record.valueOf() instanceof Object).toBe(true);
-            expect(record.$primitive).toBeUndefined();
-
-            $rootScope.$digest();
-
-            expect(record.toString()).toBe('123');
-            expect(record.valueOf()).toBe(123);
-            expect(record.$primitive).toBe(123);
-
+            expect(arr.length).toBe(4);
+            expect(arr[0]).toBe('x');
+            expect(arr[1]).toBe('a');
+            expect(arr[2]).toBe('b');
+            expect(arr[3]).toBe('c');
         }));
 
-        it('should resolve a boolean to the passed object instance', inject(function (PromiseExtensions, $rootScope) {
+        it('it should merge a primitive to an array', inject(function (PromiseExtensions, $rootScope) {
+            var arr = PromiseExtensions.resolveTo(stringPromise, ['x']);
 
-            var promise = PromiseExtensions.when(true);
+            expect(arr.length).toBe(1);
+            expect(arr[0]).toBe('x');
 
-            var record = promise.resolveTo({});
+            $rootScope.$apply();
 
-            expect(record.toString()).toBe('[object Object]');
-            expect(record.valueOf() instanceof Object).toBe(true);
-
-            $rootScope.$digest();
-
-            expect(record.toString()).toBe('true');
-            expect(record.valueOf()).toBe(true);
-
+            expect(arr.length).toBe(2);
+            expect(arr[0]).toBe('x');
+            expect(arr[1]).toBe('abc');
         }));
 
-        it('should extend the passed object instance to be promise-like', inject(function (PromiseExtensions, $rootScope) {
+        it('it should merge an object to an array', inject(function (PromiseExtensions, $rootScope) {
+            var arr = PromiseExtensions.resolveTo(objectPromise, ['x']);
 
-            var actual = {};
+            expect(arr.length).toBe(1);
+            expect(arr[0]).toBe('x');
 
-            var promise = PromiseExtensions.when([1, 2, 3]);
+            $rootScope.$apply();
 
-            var records = promise.resolveTo([]);
-
-            records.then(function (res) {
-                actual.res = res;
-            });
-
-            expect(records.$isResolved).toBe(false);
-
-            $rootScope.$digest();
-
-            expect(records.$isResolved).toBe(true);
-
-            expect(actual.res.length).toBe(3);
-            expect(actual.res[0]).toBe(1);
-            expect(actual.res[1]).toBe(2);
-            expect(actual.res[2]).toBe(3);
+            expect(arr.length).toBe(2);
+            expect(arr[0]).toBe('x');
+            expect(arr[1]).toBe(objectPromise.$r);
         }));
+
 
     });
 

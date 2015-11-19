@@ -268,18 +268,23 @@
                     });
 
                     this.$get = function ($injector, restsource) {
+                        var opts = angular.copy(_options);
                         if (_useBodyResponseInterceptor) {
-                            _options.responseInterceptors.unshift('bodyResponseInterceptor');
+                            opts.responseInterceptors.unshift('bodyResponseInterceptor');
                         }
-                        var interceptors = [];
-                        angular.forEach(_options.responseInterceptors, function (interceptor) {
-                            interceptors.push(angular.isString(interceptor) ? $injector.get(interceptor) : $injector.invoke(interceptor));
+                        opts.responseInterceptors = opts.responseInterceptors.map(function (interceptor) {
+                            if (angular.isString(interceptor)) {
+                                return $injector.get(interceptor);
+                            }
+                            if (angular.isFunction(interceptor) || angular.isArray(interceptor)) {
+                                return $injector.invoke(interceptor);
+                            }
+                            return interceptor;
                         });
-                        _options.responseInterceptors = interceptors;
-                        if (angular.isString(_options.pathParams) || angular.isFunction(_options.pathParams) || angular.isArray(_options.pathParams)) {
-                            _options.pathParams = angular.isString(_options.pathParams) ? $injector.get(_options.pathParams) : $injector.invoke(_options.pathParams);
+                        if (angular.isString(opts.pathParams) || angular.isFunction(opts.pathParams) || angular.isArray(opts.pathParams)) {
+                            opts.pathParams = angular.isString(opts.pathParams) ? $injector.get(opts.pathParams) : $injector.invoke(opts.pathParams);
                         }
-                        return restsource(url, _options);
+                        return restsource(url, opts);
                     };
                     this.$get.$inject = ['$injector', 'restsource'];
                 });

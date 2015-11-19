@@ -272,18 +272,23 @@
                     });
 
                     this.$get = function ($injector, restsource) {
+                        var opts = angular.copy(_options);
                         if (_useBodyResponseInterceptor) {
-                            _options.responseInterceptors.unshift('bodyResponseInterceptor');
+                            opts.responseInterceptors.unshift('bodyResponseInterceptor');
                         }
-                        var interceptors = [];
-                        angular.forEach(_options.responseInterceptors, function (interceptor) {
-                            interceptors.push(angular.isString(interceptor) ? $injector.get(interceptor) : $injector.invoke(interceptor));
+                        opts.responseInterceptors = opts.responseInterceptors.map(function (interceptor) {
+                            if (angular.isString(interceptor)) {
+                                return $injector.get(interceptor);
+                            }
+                            if (angular.isFunction(interceptor) || angular.isArray(interceptor)) {
+                                return $injector.invoke(interceptor);
+                            }
+                            return interceptor;
                         });
-                        _options.responseInterceptors = interceptors;
-                        if (angular.isString(_options.pathParams) || angular.isFunction(_options.pathParams) || angular.isArray(_options.pathParams)) {
-                            _options.pathParams = angular.isString(_options.pathParams) ? $injector.get(_options.pathParams) : $injector.invoke(_options.pathParams);
+                        if (angular.isString(opts.pathParams) || angular.isFunction(opts.pathParams) || angular.isArray(opts.pathParams)) {
+                            opts.pathParams = angular.isString(opts.pathParams) ? $injector.get(opts.pathParams) : $injector.invoke(opts.pathParams);
                         }
-                        return restsource(url, _options);
+                        return restsource(url, opts);
                     };
                     this.$get.$inject = ['$injector', 'restsource'];
                 });
@@ -315,8 +320,189 @@
 
 })();
 
+(function (exports) {
+    'use strict';
+
+    var NODE_TYPE_ELEMENT = 1;
+
+    function isWindow(obj) {
+        return obj && obj.window === obj;
+    }
+
+    var ArrayUtils = {
+
+        createIndex: function (array, property, transformer) {
+            return array.reduce(function (index, record) {
+                var key = angular.isFunction(property) ? property(record) : record[property];
+                index[key] = angular.isFunction(transformer) ? transformer(record) : record;
+                return index;
+            }, {});
+        },
+
+        /**
+         * Avoid leaking arguments which prevents optimizations in JavaScript engines.
+         * See https://github.com/petkaantonov/bluebird/wiki/Optimization-killers#32-leaking-arguments
+         * @param {Arguments|Array} arrayLike
+         * @returns {Array}
+         */
+        toArray: function (arrayLike) {
+            var args = new Array(arrayLike.length);
+            for (var i = 0; i < args.length; ++i) {
+                args[i] = arrayLike[i];
+            }
+            return args;
+        },
+
+        // pulled from angular 1.4.4
+        isArrayLike: function (obj) {
+            if (obj === null || obj === undefined || isWindow(obj)) {
+                return false;
+            }
+
+            // Support: iOS 8.2 (not reproducible in simulator)
+            // "length" in obj used to prevent JIT error (gh-11508)
+            var length = 'length' in Object(obj) && obj.length;
+
+            if (obj.nodeType === NODE_TYPE_ELEMENT && length) {
+                return true;
+            }
+
+            return angular.isString(obj) || angular.isArray(obj) || length === 0 ||
+                typeof length === 'number' && length > 0 && (length - 1) in obj;
+        }
+    };
+
+    /**
+     * @Class ArrayCache
+     * An array-like structure with CRUD methods
+     * @param records
+     * @param primaryIdField
+     * @constructor
+     */
+    var ArrayCache = function (records, primaryIdField) {
+        var _self = this;
+        var _records = [];
+        var _primaryIdField = primaryIdField || 'id';
+        var _indexes = {};
+
+        _indexes[_primaryIdField] = {};
+
+        function _addRecordToIndexes(record) {
+            return Object.keys(_indexes).reduce(function (exits, property) {
+                var index = _indexes[property];
+                var key = record[property];
+                var value = index[key];
+                if (!value) {
+                    index[key] = record;
+                    return exits;
+                }
+                return true;
+            }, false);
+        }
+
+        ['forEach', 'map', 'filter', 'reduce', 'sort', 'indexOf'].forEach(function (method) {
+            _self[method] = function () {
+                return _records[method].apply(_records, arguments);
+            };
+        });
+
+        Object.defineProperty(this, 'length', {
+            get: function () {
+                return _records.length;
+            },
+            set: function (length) {
+                var numToRemove = _records.length - length;
+                if (numToRemove <= 0) {
+                    return;
+                }
+                _records.splice(length, numToRemove).forEach(_self.remove);
+            }
+        });
+
+        this.read = function (id) {
+            return _indexes[_primaryIdField] ? _indexes[_primaryIdField][id] : null;
+        };
+
+        this.get = function (index) {
+            return _records[index];
+        };
+
+        this.save = function (record) {
+            if (arguments.length > 1) {
+                return _self.save(ArrayUtils.toArray(arguments));
+            }
+            if (angular.isArray(record)) {
+                return record.map(function (r) {
+                    return _self.save(r);
+                });
+            }
+            var primaryId = record[_primaryIdField];
+            if (primaryId === null || primaryId === undefined) {
+                throw 'ArrayCache::save: record has no primary id';
+            }
+            var existing = _self.read(primaryId);
+            _addRecordToIndexes(record);
+            if (existing) {
+                angular.extend(existing, record);
+                return existing;
+            } else {
+                _records.push(record);
+                return record;
+            }
+        };
+
+        this.push = this.save;
+
+
+        this.remove = function (recordOrId) {
+            if (angular.isArray(recordOrId)) {
+                return recordOrId.map(_self.remove);
+            }
+
+            var record = _self.read(recordOrId) || _self.read(recordOrId[_primaryIdField]);
+            if (!record) {
+                return undefined;
+            }
+            angular.forEach(_indexes, function (index, property) {
+                var key = record[property];
+                delete index[key];
+            });
+            var idx = _records.indexOf(record);
+            if (idx > -1) {
+                _records.splice(idx, 1);
+            }
+            return record;
+        };
+
+        this.index = function (property, transformer) {
+            var key = property || 'id';
+            var index = _indexes[key];
+            if (!index) {
+                _indexes[key] = ArrayUtils.createIndex(_records, key, transformer);
+            }
+            return _indexes[key];
+        };
+
+        this.toArray = function () {
+            return [].concat(_records);
+        };
+
+        if (angular.isArray(records)) {
+            this.save(records);
+        }
+    };
+
+    exports.Restsource = {
+        ArrayUtils: ArrayUtils,
+        ArrayCache: ArrayCache
+    };
+
+}(window));
+
 (function () {
     'use strict';
+
+    var ArrayUtils = Restsource.ArrayUtils;
 
     function isSet(obj) {
         return obj !== undefined && obj !== null;
@@ -326,6 +512,16 @@
         return typeof obj === 'boolean';
     }
 
+
+    function getType(variable) {
+        if (angular.isArray(variable)) {
+            return 'array';
+        }
+        if (angular.isObject(variable)) {
+            return 'object';
+        }
+        return 'primitive';
+    }
 
     var PromiseExtensions = function (promise) {
 
@@ -348,7 +544,30 @@
 
         };
 
+        var _resolved;
+        var _isResolved = false;
+
         angular.extend(this, promise);
+
+        promise
+            .then(function (results) {
+                _resolved = results;
+            })
+            .finally(function () {
+                _isResolved = true;
+            });
+
+        Object.defineProperty(this, '$resolved', {
+            get: function () {
+                return _resolved;
+            }
+        });
+
+        Object.defineProperty(this, '$isResolved', {
+            get: function () {
+                return _isResolved;
+            }
+        });
 
         this.then = function () {
             return new PromiseExtensions(_super.then.apply(_self, arguments));
@@ -374,53 +593,53 @@
             });
         };
 
-        this.map = function (transformer) {
-            return _self.then(function (records) {
-                return records.map(transformer);
+        /**
+         * @param {String} methodName
+         * @param {...*} parameters
+         */
+        this.invoke = function (methodName, parameters) {
+            var args = ArrayUtils.toArray(arguments);
+            args.shift();
+            return _self.then(function (result) {
+                var fn = result[methodName];
+                if (!angular.isFunction(fn)) {
+                    throw 'PromiseExtensions - Invalid argument: methodName does not reference a method';
+                }
+                return fn.apply(result, args);
             });
         };
 
-        this.filter = function (predicate) {
-            return _self.then(function (records) {
-                return records.filter(predicate);
-            });
+        this.map = function () {
+            var args = ['map'].concat(ArrayUtils.toArray(arguments));
+            return _self.invoke.apply(_self, args);
         };
 
-        this.reduce = function (iterator, initialValue) {
-            return _self.then(function (records) {
-                return records.reduce(iterator, initialValue);
-            });
+        this.filter = function () {
+            var args = ['filter'].concat(ArrayUtils.toArray(arguments));
+            return _self.invoke.apply(_self, args);
         };
 
-        this.sort = function (comparator) {
-            return _self.then(function (records) {
-                records.sort(comparator);
-                return records;
-            });
+        this.reduce = function () {
+            var args = ['reduce'].concat(ArrayUtils.toArray(arguments));
+            return _self.invoke.apply(_self, args);
+        };
+
+        this.sort = function () {
+            var args = ['sort'].concat(ArrayUtils.toArray(arguments));
+            return _self.invoke.apply(_self, args);
+        };
+
+        this.indexOf = function () {
+            var args = ['indexOf'].concat(ArrayUtils.toArray(arguments));
+            return _self.invoke.apply(_self, args);
         };
 
         this.index = function (property, transformer) {
-            return _self.reduce(function (index, record) {
-                var key = angular.isFunction(property) ? property(record) : record[property];
-                index[key] = angular.isFunction(transformer) ? transformer(record) : record;
-                return index;
-            }, {});
+            return ArrayUtils.createIndex(_self, property, transformer);
         };
 
-        this.indexOf = function (record) {
-            return _self.then(function (records) {
-                return records.indexOf(record);
-            });
-        };
-
-        this.resolveTo = function (obj, mergeFn, resolveToFn) {
-            if (angular.isFunction(resolveToFn)) {
-                return resolveToFn(_self, obj, mergeFn);
-            }
-
-            return angular.isArray(obj) ?
-                PromiseExtensions.resolveToArray(_self, obj, mergeFn) :
-                PromiseExtensions.resolveTo(_self, obj, mergeFn);
+        this.resolveTo = function (obj) {
+            return PromiseExtensions.resolveTo(_self, obj);
         };
 
     };
@@ -452,117 +671,66 @@
      *
      * @param promise Promise
      * @param obj Object
-     * @param [mergeFn] Function
      */
-    PromiseExtensions.resolveTo = function (promise, obj, mergeFn) {
-        if (angular.isString(obj) || angular.isNumber(obj) || isBoolean(obj)) {
-            throw 'Invalid argument: cannot resolve to primitive';
+    PromiseExtensions.resolveTo = function (promise, obj) {
+        var objectType = getType(obj);
+        if (objectType === 'primitive') {
+            throw 'Invalid argument: resolved must be an object';
         }
+        var mergePromise = PromiseExtensions.extend(promise).then(function (result) {
+            var resultType = getType(result);
 
-        var _primitive;
-        var _rejection;
-        var _resolved = false;
-        var _super = {
-            valueOf: obj.valueOf,
-            toString: obj.toString,
-            then: promise.then,
-            catch: promise.catch,
-            finally: promise.finally
-        };
-        var _mergeFn = angular.isFunction(mergeFn) ? mergeFn : PromiseExtensions.merge;
+            switch ([objectType, resultType].join('<')) {
+                case 'object<object':
+                    angular.merge(obj, result);
+                    break;
 
-        var _promise = promise.then(function (resolved) {
-            _resolved = true;
-            if (angular.isString(resolved) || angular.isNumber(resolved) || isBoolean(resolved)) {
-                _primitive = resolved;
+                case 'object<array':
+                    result.forEach(function (item, index) {
+                        obj[index] = item;
+                    });
+                    break;
+
+                case 'object<primitive':
+                    obj.toString = function () {
+                        return result ? result.toString() : result;
+                    };
+                    obj.valueOf = function () {
+                        return result;
+                    };
+                    break;
+
+                case 'array<array':
+                    result.forEach(function (item) {
+                        obj.push(item);
+                    });
+                    break;
+
+                case 'array<object':
+                case 'array<primitive':
+                    obj.push(result);
+                    break;
+
+                default:
+                    return PromiseExtensions.reject('Failed to merge result to object instance');
             }
-            return _mergeFn(obj, resolved);
+            return obj;
         });
 
-        promise.catch(function (rejection) {
-            _rejection = rejection;
-            _resolved = true;
-        });
-
-        Object.defineProperty(obj, '$promise', {
-            get: function () {
-                return _promise;
-            }
-        });
-
-        Object.defineProperty(obj, '$primitive', {
-            get: function () {
-                return _primitive;
-            }
-        });
-
-        Object.defineProperty(obj, '$rejection', {
-            get: function () {
-                return _rejection;
-            }
-        });
-
-        Object.defineProperty(obj, '$isResolved', {
-            get: function () {
-                return _resolved;
+        Object.defineProperties(obj, {
+            $promise: {
+                get: function () {
+                    return mergePromise;
+                }
             }
         });
-
-
-        /**
-         * Override `valueOf` to support resolving primitives
-         * @returns {*}
-         */
-        obj.valueOf = function () {
-            return isSet(_primitive) ? _primitive : _super.valueOf.call(obj);
-        };
-
-        /**
-         * Override `toString` to support resolving primitives
-         * @returns string
-         */
-        obj.toString = function () {
-            return isSet(_primitive) ? _primitive.toString() : _super.toString.call(obj);
-        };
-
-        obj.$then = function () {
-            return _super.then.apply(_promise, arguments);
-        };
-
-        obj.$catch = function () {
-            return _super.catch.apply(_promise, arguments);
-        };
-
-        obj.$finally = function () {
-            return _super.finally.apply(_promise, arguments);
-        };
-
-
-        /**
-         * Provide promise-like aliases
-         */
-        obj.then = obj.$then;
-        obj.catch = obj.$catch;
-        obj.finally = obj.$finally;
-
-        /**
-         * Returns a promise to get the named property of an object.
-         * @param key
-         */
-        obj.$get = function (key) {
-            return obj.$then(function (results) {
-                return results[key];
-            });
-        };
 
         return obj;
     };
 
     PromiseExtensions.merge = function (obj, resolved) {
-        if (angular.isArray(resolved) && angular.isArray(obj)) {
-            resolved.forEach(function (item) {
-                obj.push(item);
-            });
+        if (ArrayUtils.isArrayLike(resolved) && ArrayUtils.isArrayLike(obj)) {
+            obj.push.apply(obj, resolved);
             return obj;
         }
         if (angular.isObject(resolved) && angular.isObject(obj)) {
@@ -572,254 +740,11 @@
         return resolved;
     };
 
-    PromiseExtensions.resolveToArray = function (promise, arr, mergeFn) {
-
-        PromiseExtensions.resolveTo(promise, arr, mergeFn);
-
-        Object.defineProperty(arr, '$length', {
-            get: function () {
-                return arr.$then(function (records) {
-                    return records.length;
-                });
-            }
+    PromiseExtensions.isResolvedTo = function (obj) {
+        return ['$promise'].every(function (member) {
+            return member in obj;
         });
-
-        arr.$spread = function (callback, errback) {
-            return arr.$then(function (records) {
-                return callback.apply(this, records);
-            }, errback);
-        };
-
-        arr.$map = function (transformer) {
-            return arr
-                .$then(function (records) {
-                    return records.map(transformer);
-                });
-        };
-
-        arr.$filter = function (predicate) {
-            return arr.$then(function (records) {
-                return records.filter(predicate);
-            });
-        };
-
-        arr.$reduce = function (iterator, initialValue) {
-            return arr.$then(function (records) {
-                return records.reduce(iterator, initialValue);
-            });
-        };
-
-        arr.$forEach = function (iterator) {
-            return arr.$then(function (records) {
-                records.forEach(iterator);
-            });
-        };
-
-        arr.$sort = function (comparator) {
-            return arr.$then(function (records) {
-                records.sort(comparator);
-            });
-        };
-
-        arr.$indexOf = function (record) {
-            return arr.$then(function (records) {
-                return records.indexOf(record);
-            });
-        };
-
-        /**
-         * Construct an `index` from the resolved value of a promise
-         * using a particular property.
-         *
-         * Optionally transform the record before adding it to
-         * the index.
-         *
-         * @param property
-         * @param transformer
-         * @returns {Promise}
-         */
-        arr.$index = function (property, transformer) {
-            return arr.$reduce(function (index, record) {
-                var key = angular.isFunction(property) ? property(record) : record[property];
-                index[key] = angular.isFunction(transformer) ? transformer(record) : record;
-                return index;
-            }, {});
-        };
-
-        return arr;
     };
-
-
-    PromiseExtensions.resolveToStore = function (promise, arr, mergeFn) {
-
-        PromiseExtensions.resolveToArray(promise, arr, mergeFn);
-
-        var _super = {
-            $index: arr.$index
-        };
-
-        var _indexes = {
-            id: _super.$index('id')
-        };
-
-
-        function updateIndexes(record) {
-            return arr.$indexes().then(function (indexes) {
-                var exists = false;
-                angular.forEach(indexes, function (index, property) {
-                    var key = record[property];
-                    var value = index[key];
-                    if (!value) {
-                        index[key] = record;
-                    } else {
-                        exists = true;
-                    }
-                });
-                return exists;
-            });
-        }
-
-        /**
-         * Gets or creates an index of models based on the passed property and transformer.
-         * @param {String} [property='id'] Model property used to create the index
-         * @param {Function} [transformer] Model transformer function used to create the index
-         * @returns {Promise} a promise for the index
-         */
-        arr.$index = function (property, transformer) {
-            var key = property || 'id';
-            var index = _indexes[key];
-            if (!index) {
-                _indexes[key] = _super.$index(key, transformer);
-            }
-            return _indexes[key];
-        };
-
-        /**
-         * @returns {Promise} a promise for all indexes
-         */
-        arr.$indexes = function () {
-            return PromiseExtensions.all(_indexes);
-        };
-
-        /**
-         * Returns a record from the promise by the record id
-         * @param {Number} id Model ID
-         * @returns {Promise} a promise for the record
-         */
-        arr.$read = function (id) {
-            return _indexes.id.then(function (map) {
-                return map[id];
-            });
-        };
-
-        /**
-         * Updates the record instance
-         * @param {Object} record
-         * @returns {Promise} a promise for the record
-         */
-        arr.$update = function (record) {
-            return _indexes.id.then(function (index) {
-                var updated = index[record.id];
-                if (!updated) {
-                    return PromiseExtensions.reject('record not found');
-                }
-                angular.extend(updated, record);
-                return updated;
-            });
-        };
-
-        arr.$save = function (record) {
-            return _indexes.id.then(function (index) {
-                return index[record.id] ?
-                    arr.$update(record) :
-                    arr.$push(record);
-            });
-        };
-
-        arr.$saveAll = function (records) {
-            return PromiseExtensions.all(records.map(arr.$save));
-        };
-
-        /**
-         * Adds a record to the end of the list
-         * @param {Object} record
-         * @returns {Promise} a promise for the record
-         */
-        arr.$push = function (record) {
-            return updateIndexes(record).then(function () {
-                arr.push(record);
-                return record;
-            });
-        };
-
-        arr.$pushAll = function (records) {
-            return PromiseExtensions.all(records.map(arr.$push));
-        };
-
-
-        /**
-         * Adds a record to the beginning of the list
-         * @param {Object} record
-         * @returns {Promise} a promise for the record
-         */
-        arr.$unshift = function (record) {
-            return updateIndexes(record).then(function () {
-                arr.unshift(record);
-                return record;
-            });
-        };
-
-
-        arr.$insert = function (position, record) {
-            return updateIndexes(record).then(function () {
-                arr.insert(position, record);
-                return record;
-            });
-        };
-
-
-        /**
-         * Removes the model from the list of records and all indexes
-         * @param {Number} recordOrId Model ID
-         * @returns {Promise} a promise for the model
-         */
-        arr.$remove = function (recordOrId) {
-            return arr.$indexes().then(function (indexes) {
-                var record = indexes.id[recordOrId] || indexes.id[recordOrId.id];
-                if (!record) {
-                    return undefined;
-                }
-                angular.forEach(indexes, function (index, property) {
-                    var key = record[property];
-                    delete index[key];
-                });
-                var idx = arr.indexOf(record);
-                if (idx > -1) {
-                    arr.splice(idx, 1);
-                }
-                return record;
-            });
-        };
-
-        arr.$removeAll = function (records) {
-            return PromiseExtensions.all(records.map(arr.$remove));
-        };
-
-        arr.$clear = function () {
-            return arr.$indexes().then(function (indexes) {
-                angular.forEach(indexes, function (index) {
-                    Object.keys(index).forEach(function (key) {
-                        delete index[key];
-                    });
-                });
-                arr.length = 0;
-                return arr;
-            });
-        };
-
-        return arr;
-    };
-
 
     angular.module('angular-restsource.promise-extensions', [])
         .factory('PromiseExtensions', ['$q', function ($q) {
