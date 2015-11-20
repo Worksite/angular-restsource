@@ -1,5 +1,5 @@
 /**! 
- * angular-restsource v0.3.0
+ * angular-restsource v0.3.1
  * Copyright (c) 2013 Ares Project Management LLC <code@prismondemand.com>
  */
 (function () {
@@ -601,9 +601,12 @@
             var args = ArrayUtils.toArray(arguments);
             args.shift();
             return _self.then(function (result) {
+                if (!isSet(result)) {
+                    return result;
+                }
                 var fn = result[methodName];
                 if (!angular.isFunction(fn)) {
-                    throw 'PromiseExtensions - Invalid argument: methodName does not reference a method';
+                    throw 'PromiseExtensions.invoke - Invalid argument: methodName does not reference a method';
                 }
                 return fn.apply(result, args);
             });
