@@ -286,6 +286,43 @@ describe('Service: PromiseExtensions', function () {
 
     });
 
+    describe('invoke', function () {
+
+        it('should invoke the method the resolved result', inject(function (PromiseExtensions, $rootScope) {
+
+            var promise = PromiseExtensions.when(['def', 'abc']);
+
+            var callback = jasmine.createSpy('callback');
+
+            var p = promise
+                .invoke('sort')
+                .spread(callback);
+
+            $rootScope.$digest();
+
+            expect(p instanceof PromiseExtensions).toBe(true);
+            expect(callback).toHaveBeenCalledWith('abc', 'def');
+        }));
+
+        it('should return null for null resolved result', inject(function (PromiseExtensions, $rootScope) {
+
+            var promise = PromiseExtensions.when(null);
+
+            var callback = jasmine.createSpy('callback');
+
+            var p = promise
+                .invoke('sort')
+                .then(callback);
+
+            $rootScope.$digest();
+
+            expect(p instanceof PromiseExtensions).toBe(true);
+            expect(callback).toHaveBeenCalledWith(null);
+        }));
+
+
+    });
+
     describe('map', function () {
 
         it('should transform a resolved array', inject(function (PromiseExtensions, $rootScope) {
