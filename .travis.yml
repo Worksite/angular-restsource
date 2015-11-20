@@ -5,5 +5,6 @@ before_script:
   - npm install grunt-cli -g
   - npm install bower -g
   - bower install
+sudo: false
 notifications:
   hipchat: 61e188f865b9ca18a0307b8b3ff3ab@Github
