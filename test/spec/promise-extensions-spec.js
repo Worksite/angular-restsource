@@ -389,6 +389,56 @@ describe('Service: PromiseExtensions', function () {
 
     });
 
+
+    describe('flatMap', function () {
+
+        it('should transform array', inject(function (PromiseExtensions, $rootScope) {
+
+            var actual = {};
+
+            var promise = PromiseExtensions.when(['abc', 'def']);
+
+            promise
+                .flatMap(function (word) {
+                    return word.split('').map(PromiseExtensions.when);
+                })
+                .then(function (letters) {
+                    actual.letters = letters;
+                });
+
+
+            $rootScope.$digest();
+
+            expect(actual.letters).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+
+        }));
+
+    });
+
+    describe('all', function () {
+
+        it('should resolve a promise of promises', inject(function (PromiseExtensions, $rootScope) {
+            var actual = {};
+
+            var promise = PromiseExtensions.when([1, 2, 3]);
+
+            promise
+                .then(function (numbers) {
+                    return numbers.map(PromiseExtensions.when);
+                })
+                .all()
+                .then(function (numbers) {
+                    actual.numbers = numbers;
+                });
+
+            $rootScope.$digest();
+
+
+            expect(actual.numbers).toEqual([1, 2, 3]);
+        }));
+
+    });
+
     describe('index', function () {
 
         it('should create an index from the resolved array of records', inject(function (PromiseExtensions, $rootScope) {
