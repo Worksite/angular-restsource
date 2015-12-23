@@ -107,7 +107,11 @@
                 if (!angular.isFunction(fn)) {
                     throw 'PromiseExtensions.invoke - Invalid argument: methodName does not reference a method';
                 }
-                return fn.apply(result, args);
+                var applied = fn.apply(result, args);
+                if (angular.isArray(applied) || angular.isObject(applied)) {
+                    return PromiseExtensions.all(applied);
+                }
+                return applied;
             });
         };
 

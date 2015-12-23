@@ -71,6 +71,26 @@ describe('Service: PromiseExtensions', function () {
                 expect(actual.err2).toBe('untouched');
 
             }));
+
+
+            it('should handle nested promises', inject(function (PromiseExtensions, $rootScope) {
+
+                var actual = {};
+
+                PromiseExtensions.when(123)
+                    .then(function (result) {
+                        return PromiseExtensions.when(result + 10);
+                    })
+                    .then(function (result) {
+                        actual.result = result;
+                    });
+
+                $rootScope.$digest();
+
+                expect(actual.result).toBe(133);
+
+
+            }))
         });
 
         it('should handle rejected promises', inject(function (PromiseExtensions, $rootScope) {
@@ -344,6 +364,27 @@ describe('Service: PromiseExtensions', function () {
 
             expect(p instanceof PromiseExtensions).toBe(true);
             expect(callback).toHaveBeenCalledWith('$11', '$12', '$13');
+        }));
+
+        it('should resolve nested promises', inject(function (PromiseExtensions, $rootScope) {
+
+            var actual = {};
+
+            var promise = PromiseExtensions.when([1, 2, 3]);
+
+            var p = promise
+                .map(function (i) {
+                    return PromiseExtensions.when(i + 10);
+                })
+                .then(function (values) {
+                    actual.values = values;
+                });
+
+            $rootScope.$digest();
+
+
+            expect(actual.values).toEqual([11, 12, 13]);
+
         }));
 
     });
