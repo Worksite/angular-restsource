@@ -1,5 +1,5 @@
 /**! 
- * angular-restsource v0.3.2
+ * angular-restsource v0.3.3
  * Copyright (c) 2013 Ares Project Management LLC <code@prismondemand.com>
  */
 (function () {
@@ -619,6 +619,24 @@
         this.map = function () {
             var args = ['map'].concat(ArrayUtils.toArray(arguments));
             return _self.invoke.apply(_self, args);
+        };
+
+        this.flatMap = function (transformer) {
+            return _self.reduce(function (result, item, index, array) {
+                var items = transformer(item, index, array);
+                if (angular.isArray(items)) {
+                    items.forEach(function (i) {
+                        result.push(i);
+                    });
+                }
+                return result;
+            }, []);
+        };
+
+        this.all = function () {
+            return _self.then(function (result) {
+                return PromiseExtensions.all(result);
+            });
         };
 
         this.filter = function () {
